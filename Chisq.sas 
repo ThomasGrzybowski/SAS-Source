@@ -1,0 +1,78 @@
+/**********************************************************************************************
+*                                                                                             *
+* Macro        : CHISQ                                                                        *
+* Description  : Calculates p-values for Chi-Square tests of independence or equality         *
+*                of binomial proportions.                                                     *
+*                Statistics can be calculated by Treatment Group plus two more BY variables.  *
+*                e.g. If TRTVAR=TRT and BYGRP1=Visit and BYGRP2=Parameter are specified,      *
+*                     statistics are calculated by Treatment Group, Visit and Parameter.      *
+*                                                                                             *
+* Parameters   :                                                                              *
+*        DAT   : Name of analysis dataset.                                                    *
+*        VAR   : Name of analysis variable.                                                   *
+*     TRTVAR   : Name of treatment group variable. If trtvar= is specified, summary           *
+*                 Default is trtvar=blank, treatment group not included.                      *
+*                 If trtvar= is specified, summary stats are calculated by Treatment Group.   *
+*     BYGRP1   : Name of first variable to calculate summary statistics by.  (e.g. Visit)     *
+*                 Default is bygrp1=blank, no BY group 1.                                     *
+*     BYGRP2   : Name of second variable to calculate summary statistics by. (e.g. Parameter) *
+*                 Default is bygrp2=blank, no BY group 2.                                     *
+*        LAB   : Label for analysis variable to appear in summary statistics table.           *
+*          N   : Number for analysis variable - controls the order the analysis variables     *
+*                      appear in the summary statistics table.                                *
+*     PTYPE    : Type of test.  PTYPE=CHI for Chi-Square Test.                                *
+*                If PTYPE=FISH is specified Fishers Exact Test will be performed.             *
+*                                                                                             *
+*                                                                                             *
+* Modification :                                                                              *
+*  By   Date        Description                                                               *
+* ---- ----------- -------------------------------------------------------------------------- *
+*                                                                                             *
+*                                                                                             *
+*                                                                                             *
+***********************************************************************************************/
+
+%MACRO CHISQ(INDAT=,ANALYVAR=,TRTVAR=,BYGRP1=,BYGRP2=,LAB=,N=,PTYPE=);
+   %IF "&BYGRP1" NE "" %THEN %DO;
+       PROC SORT DATA=&INDAT;
+         BY &BYGRP1 &BYGRP2;
+       RUN;
+   %END;
+   PROC FREQ DATA=&INDAT;
+     %IF "&BYGRP1" NE "" %THEN %DO;
+         BY &BYGRP1 &BYGRP2;
+     %END;
+     TABLE &TRTVAR*&ANALYVAR/FISHER;
+     %IF &PTYPE=CHI %THEN %DO;
+         ODS OUTPUT CHISQ=OUT_TEST;
+     %END;
+     %ELSE %IF &PTYPE=FISH %THEN %DO;
+         ODS OUTPUT FISHERSEXACT=OUT_TEST;
+     %END;
+     ODS LISTING CLOSE;
+   RUN;
+   ODS LISTING;
+   DATA O&N (KEEP = VAR PAR STATNO VAL1 VARN NO &BYGRP1 &BYGRP2);
+     FORMAT VAR $CHAR75. PAR $CHAR85. VAL1 $CHAR25.;
+     SET OUT_TEST;
+
+     %IF &PTYPE=CHI %THEN %DO;
+         IF STATISTIC='Chi-Square';
+         PROBT=ROUND(PROB,.0001);
+         STATNO=8.21;
+     %END;
+     %ELSE %IF &PTYPE=FISH %THEN %DO;
+         IF NAME1='XP2_FISH';
+         PROBT=ROUND(NVALUE1,.0001);
+         STATNO=8.22;
+     %END;
+     VAR=&LAB;
+     PAR="X";
+     NO=STATNO;
+     VARN=&N;
+     PVAL=PUT(PROBT,9.4);
+     IF PROBT=0 THEN PVAL=' <0.0001';
+     IF PROBT=. THEN PVAL='        ';
+     VAL1=COMPRESS(PVAL);
+   RUN;
+%MEND CHISQ;
