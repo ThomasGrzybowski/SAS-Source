@@ -1,4 +1,4 @@
 SAS-Source
 ==========
 
-SAS Statistical Analysis Software Repository
+SAS Statistical Analysis for Clinical Trials Software Repository
